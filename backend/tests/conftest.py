@@ -21,9 +21,8 @@ os.environ["GROQ_API_KEY"] = "mock-groq-api-key-12345"
 os.environ["MONGO_URI"] = "mongodb://localhost:27017"
 os.environ["MONGO_DB_NAME"] = "healthcare_ai_test"
 
-from backend.config import get_settings, Settings  # noqa: E402
+from backend.config import Settings, get_settings  # noqa: E402
 from backend.models.domain import TokenUsage  # noqa: E402
-
 
 # =============================================================================
 # Mock Groq Service
@@ -48,9 +47,9 @@ class MockGroqService:
         correlation_id: str = "",
     ) -> tuple[AIMessage, TokenUsage]:
         from backend.schemas.error_schema import (
-            GroqUnavailableError,
             GroqRateLimitError,
             GroqTimeoutError,
+            GroqUnavailableError,
         )
 
         if self.should_fail_auth:
@@ -153,6 +152,7 @@ def mock_mongo_client() -> Generator[Any, None, None]:
     Overriding AsyncIOMotorClient inside connection.py to use mongomock_motor.
     """
     from mongomock_motor import AsyncMongoMockClient
+
     from backend.database import connection
 
     mock_client = AsyncMongoMockClient()
@@ -182,9 +182,10 @@ async def app_client(mock_groq) -> AsyncGenerator[Any, None]:
     """
     Provides an async HTTP client for testing API routes.
     """
-    from httpx import AsyncClient, ASGITransport
+    from httpx import ASGITransport, AsyncClient
+
+    from backend.database.connection import close_mongo, connect_mongo
     from backend.main import create_app
-    from backend.database.connection import connect_mongo, close_mongo
 
     await connect_mongo()
     app = create_app()

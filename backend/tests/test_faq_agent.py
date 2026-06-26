@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from backend.agents.faq_agent import faq_node, MANDATORY_DISCLAIMER
+from backend.agents.faq_agent import MANDATORY_DISCLAIMER, faq_node
 
 
 @pytest.mark.asyncio

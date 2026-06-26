@@ -15,12 +15,12 @@ from fastapi import Depends
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 
 from backend.database.repository import (
-    SessionRepository,
     MessageRepository,
-    get_session_repository,
+    SessionRepository,
     get_message_repository,
+    get_session_repository,
 )
-from backend.models.domain import Session, ChatMessage, MessageRole, TokenUsage
+from backend.models.domain import ChatMessage, MessageRole, Session, TokenUsage
 from backend.utils.logger import get_logger
 
 logger = get_logger(__name__)

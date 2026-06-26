@@ -10,11 +10,12 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 import pytest
+
 from backend.database.repository import (
-    SessionRepository,
-    MessageRepository,
     FeedbackRepository,
+    MessageRepository,
     MonitoringLogRepository,
+    SessionRepository,
 )
 from backend.models.domain import MessageRole
 
