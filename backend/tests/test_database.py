@@ -12,9 +12,13 @@ from datetime import datetime, timezone
 import pytest
 
 from backend.database.repository import (
+    ConsultationRepository,
+    FAQLogRepository,
     FeedbackRepository,
+    FollowupRepository,
     MessageRepository,
     MonitoringLogRepository,
+    ReimbursementRepository,
     SessionRepository,
 )
 from backend.models.domain import MessageRole
@@ -156,3 +160,115 @@ async def test_monitoring_repository(mock_mongo_client) -> None:
     # Breakdown
     breakdown = await repo.get_agent_breakdown()
     assert len(breakdown) == 2
+
+
+@pytest.mark.asyncio
+async def test_consultation_repository(mock_mongo_client) -> None:
+    """Verify ConsultationRepository works correctly."""
+    db = mock_mongo_client["healthcare_ai_test"]
+    repo = ConsultationRepository(db[ConsultationRepository.COLLECTION])
+
+    doc = {
+        "correlation_id": "corr-consult-1",
+        "session_id": "sess-consult-1",
+        "patient_name": "Alice Smith",
+        "specialty": "dermatologist",
+        "preferred_date": "2026-07-01",
+        "city": "Lyon",
+        "doctor_preference": None,
+        "confirmation": "Appointment registered.",
+    }
+
+    inserted_id = await repo.insert_one(doc)
+    assert inserted_id is not None
+
+    found = await repo.get_by_correlation_id("corr-consult-1")
+    assert found is not None
+    assert found["patient_name"] == "Alice Smith"
+
+    list_found = await repo.get_by_session("sess-consult-1")
+    assert len(list_found) == 1
+    assert list_found[0]["specialty"] == "dermatologist"
+
+
+@pytest.mark.asyncio
+async def test_reimbursement_repository(mock_mongo_client) -> None:
+    """Verify ReimbursementRepository works correctly."""
+    db = mock_mongo_client["healthcare_ai_test"]
+    repo = ReimbursementRepository(db[ReimbursementRepository.COLLECTION])
+
+    doc = {
+        "correlation_id": "corr-reimb-1",
+        "session_id": "sess-reimb-1",
+        "required_documents": ["ID card", "invoice"],
+        "coverage": "80% coverage",
+        "delay": "10 days",
+        "steps": ["Step 1", "Step 2"],
+        "answer": "Reimbursement query answered.",
+    }
+
+    inserted_id = await repo.insert_one(doc)
+    assert inserted_id is not None
+
+    list_found = await repo.get_by_session("sess-reimb-1")
+    assert len(list_found) == 1
+    assert "ID card" in list_found[0]["required_documents"]
+
+
+@pytest.mark.asyncio
+async def test_followup_repository(mock_mongo_client) -> None:
+    """Verify FollowupRepository works correctly."""
+    db = mock_mongo_client["healthcare_ai_test"]
+    repo = FollowupRepository(db[FollowupRepository.COLLECTION])
+
+    doc = {
+        "correlation_id": "corr-followup-1",
+        "session_id": "sess-followup-1",
+        "symptoms": ["headache", "fever"],
+        "recommendations": ["Rest", "Drink fluids"],
+        "requires_urgent_care": False,
+        "answer": "Follow-up processed.",
+    }
+
+    inserted_id = await repo.insert_one(doc)
+    assert inserted_id is not None
+
+    list_found = await repo.get_by_session("sess-followup-1")
+    assert len(list_found) == 1
+    assert "headache" in list_found[0]["symptoms"]
+
+    doc_urgent = {
+        "correlation_id": "corr-followup-2",
+        "session_id": "sess-followup-2",
+        "symptoms": ["chest pain"],
+        "recommendations": ["Go to ER"],
+        "requires_urgent_care": True,
+        "answer": "Urgent care required.",
+    }
+    await repo.insert_one(doc_urgent)
+
+    urgents = await repo.get_urgent_cases()
+    assert len(urgents) == 1
+    assert urgents[0]["correlation_id"] == "corr-followup-2"
+
+
+@pytest.mark.asyncio
+async def test_faq_log_repository(mock_mongo_client) -> None:
+    """Verify FAQLogRepository works correctly."""
+    db = mock_mongo_client["healthcare_ai_test"]
+    repo = FAQLogRepository(db[FAQLogRepository.COLLECTION])
+
+    doc = {
+        "correlation_id": "corr-faq-1",
+        "session_id": "sess-faq-1",
+        "answer": "Answer about diabetes.",
+        "disclaimer": "Medical disclaimer.",
+    }
+
+    inserted_id = await repo.insert_one(doc)
+    assert inserted_id is not None
+
+    list_found = await repo.get_by_session("sess-faq-1")
+    assert len(list_found) == 1
+    assert list_found[0]["answer"] == "Answer about diabetes."
+

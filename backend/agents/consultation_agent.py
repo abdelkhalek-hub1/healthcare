@@ -141,6 +141,34 @@ async def consultation_node(state: dict[str, Any]) -> dict[str, Any]:
             },
         )
 
+        # ── Write to MongoDB (best-effort) ──────────────────────────────────────
+        try:
+            from backend.database.connection import get_database
+            from backend.database.repository import ConsultationRepository
+
+            db = get_database()
+            repo = ConsultationRepository(db[ConsultationRepository.COLLECTION])
+
+            consultation_doc = consultation_data.model_dump()
+            consultation_doc["correlation_id"] = correlation_id
+            consultation_doc["session_id"] = session_id
+
+            await repo.insert_one(consultation_doc)
+        except RuntimeError:
+            # MongoDB not yet initialised (e.g., running tests without DB)
+            logger.debug(
+                "ConsultationNode: MongoDB not initialised — skipping log write",
+                extra={"correlation_id": correlation_id},
+            )
+        except Exception as exc:
+            logger.warning(
+                "ConsultationNode: failed to write consultation log",
+                extra={
+                    "correlation_id": correlation_id,
+                    "error": str(exc),
+                },
+            )
+
         return {
             "response": agent_response.to_state_dict(),
             "token_usage": {
@@ -149,6 +177,7 @@ async def consultation_node(state: dict[str, Any]) -> dict[str, Any]:
                 "total_tokens": token_usage.total_tokens,
             },
         }
+
 
     except Exception as exc:
         error_msg = f"ConsultationNode error: {type(exc).__name__}: {exc}"

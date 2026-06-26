@@ -148,6 +148,33 @@ async def followup_node(state: dict[str, Any]) -> dict[str, Any]:
                 },
             )
 
+        # ── Write to MongoDB (best-effort) ──────────────────────────────────────
+        try:
+            from backend.database.connection import get_database
+            from backend.database.repository import FollowupRepository
+
+            db = get_database()
+            repo = FollowupRepository(db[FollowupRepository.COLLECTION])
+
+            followup_doc = followup_data.model_dump()
+            followup_doc["correlation_id"] = correlation_id
+            followup_doc["session_id"] = session_id
+
+            await repo.insert_one(followup_doc)
+        except RuntimeError:
+            logger.debug(
+                "FollowupNode: MongoDB not initialised — skipping log write",
+                extra={"correlation_id": correlation_id},
+            )
+        except Exception as exc:
+            logger.warning(
+                "FollowupNode: failed to write followup log",
+                extra={
+                    "correlation_id": correlation_id,
+                    "error": str(exc),
+                },
+            )
+
         return {
             "response": agent_response.to_state_dict(),
             "token_usage": {
@@ -156,6 +183,7 @@ async def followup_node(state: dict[str, Any]) -> dict[str, Any]:
                 "total_tokens": token_usage.total_tokens,
             },
         }
+
 
     except Exception as exc:
         error_msg = f"FollowupNode error: {type(exc).__name__}: {exc}"

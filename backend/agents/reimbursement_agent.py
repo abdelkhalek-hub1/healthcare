@@ -135,6 +135,33 @@ async def reimbursement_node(state: dict[str, Any]) -> dict[str, Any]:
             },
         )
 
+        # ── Write to MongoDB (best-effort) ──────────────────────────────────────
+        try:
+            from backend.database.connection import get_database
+            from backend.database.repository import ReimbursementRepository
+
+            db = get_database()
+            repo = ReimbursementRepository(db[ReimbursementRepository.COLLECTION])
+
+            reimbursement_doc = reimbursement_data.model_dump()
+            reimbursement_doc["correlation_id"] = correlation_id
+            reimbursement_doc["session_id"] = session_id
+
+            await repo.insert_one(reimbursement_doc)
+        except RuntimeError:
+            logger.debug(
+                "ReimbursementNode: MongoDB not initialised — skipping log write",
+                extra={"correlation_id": correlation_id},
+            )
+        except Exception as exc:
+            logger.warning(
+                "ReimbursementNode: failed to write reimbursement log",
+                extra={
+                    "correlation_id": correlation_id,
+                    "error": str(exc),
+                },
+            )
+
         return {
             "response": agent_response.to_state_dict(),
             "token_usage": {
@@ -143,6 +170,7 @@ async def reimbursement_node(state: dict[str, Any]) -> dict[str, Any]:
                 "total_tokens": token_usage.total_tokens,
             },
         }
+
 
     except Exception as exc:
         error_msg = f"ReimbursementNode error: {type(exc).__name__}: {exc}"
